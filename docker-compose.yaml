@@ -1,0 +1,7 @@
+version: "3"
+
+services:
+  cloud:
+    image: dummy
+    build:
+      context: .
