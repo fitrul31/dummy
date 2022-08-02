@@ -1,31 +1,32 @@
-FROM node:16
+# Stage 1 build app
+FROM node:slim AS build-app
 
-# Setup
-RUN apt-get update \
-    && apt-get install -y wget gnupg libxss1 \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf \
-      --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /usr/locals/app
 
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-
-# Create app directory
-WORKDIR /usr/src/app
-
-# Install app dependencies
-COPY package*.json ./
-
-RUN yarn install
-RUN yarn ci --only=production
-
-# Bundle app source
+# Copying source files
 COPY . .
 
+# Building app
+RUN apt update && apt install -y git
+
+# Stage 2 install runtime dependencies
+FROM node:slim AS build-runtime
+
+WORKDIR /usr/locals/app
+
+COPY package.json yarn.lock ./
+
+RUN apt update && apt install -y git && yarn install --production --frozen-lockfile
+
+# Stage 3
+FROM node:slim
+
+WORKDIR /usr/locals/app
+
+COPY --from=build-app /usr/locals/app .
+COPY --from=build-runtime /usr/locals/app/node_modules ./node_modules
+
 EXPOSE 3000
-CMD [ "node", "./bin/www" ]
+
+# Start the app
+CMD ["node", "./bin/www"]
