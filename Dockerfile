@@ -7,7 +7,7 @@ WORKDIR /usr/locals/app
 COPY . .
 
 # Building app
-RUN apt update && apt install -y git
+RUN apt update && apt install -y git && yarn install
 
 # Stage 2 install runtime dependencies
 FROM node:slim AS build-runtime
